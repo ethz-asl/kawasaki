@@ -9,7 +9,7 @@ import traceback, code
 import optparse
 import SocketServer
 
-# import rospy
+import rospy
 # import actionlib
 # from sensor_msgs.msg import JointState
 # from control_msgs.msg import FollowJointTrajectoryAction
@@ -95,7 +95,6 @@ import SocketServer
 # #dump_state = open('dump_state', 'wb')
 
 
-
 # def dumpstacks():
 #     id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
 #     code = []
@@ -106,9 +105,11 @@ import SocketServer
 #             if line:
 #                 code.append("  %s" % (line.strip()))
 #     print "\n".join(code)
-#
-# def log(s):
-#     print "[%s] %s" % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'), s)
+
+
+def log(s):
+    print("[%s] %s" %
+          (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'), s))
 
 
 # RESET_PROGRAM = '''def resetProg():
@@ -116,7 +117,8 @@ import SocketServer
 # end
 # '''
 
-class EOF(Exception): pass
+class EOF(Exception):
+    pass
 
 # TODO(ntonci): Implement
 RESET_PROGRAM = ''
@@ -124,7 +126,7 @@ RESET_PROGRAM = ''
 PORT = 23       # 10 Hz, RobotState
 HOSTNAME = "192.168.2.2"
 
-class URConnection(object):
+class KawasakiConnection(object):
     TIMEOUT = 1.0
 
     DISCONNECTED = 0
@@ -290,7 +292,7 @@ class URConnection(object):
                 self.__keep_running = False
 
 
-class URConnectionRT(object):
+class KawasakiConnectionRT(object):
     TIMEOUT = 1.0
 
     DISCONNECTED = 0
@@ -311,7 +313,8 @@ class URConnectionRT(object):
         self.robot_state = self.CONNECTED
         self.__sock = socket.create_connection((self.hostname, self.port))
         self.__keep_running = True
-        self.__thread = threading.Thread(name="URConnectionRT", target=self.__run)
+        self.__thread = threading.Thread(name="KawasakiConnectionRT",
+                                         target=self.__run)
         self.__thread.daemon = True
         self.__thread.start()
 
@@ -779,6 +782,7 @@ class URTrajectoryFollower(object):
             goal_handle.set_canceled()
 
     last_now = time.time()
+
     def _update(self, event):
         if self.robot and self.traj:
             now = time.time()
@@ -856,11 +860,13 @@ def load_joint_offsets(joint_names):
             rospy.logwarn("No calibration offset for joint \"%s\"" % joint)
     return result
 
+
 def get_my_ip(robot_ip, port):
     s = socket.create_connection((robot_ip, port))
     tmp = s.getsockname()[0]
     s.close()
     return tmp
+
 
 def handle_set_io(req):
     r = getConnectedRobot(wait=False)
@@ -880,14 +886,17 @@ def handle_set_io(req):
     else:
         raise ROSServiceException("Robot not connected")
 
+
 def set_io_server():
-    s= rospy.Service('set_io', SetIO, handle_set_io)
+    s = rospy.Service('set_io', SetIO, handle_set_io)
+
 
 def reconfigure_callback(config, level):
     global prevent_programming
     prevent_programming = config.prevent_programming
     ## What about updating the value on the parameter server?
     return config
+
 
 def main():
     rospy.init_node('ur_driver', disable_signals=True)
@@ -949,11 +958,11 @@ def main():
 
     with open(roslib.packages.get_pkg_dir('ur_driver') + '/prog') as fin:
         program = fin.read() % {"driver_hostname": get_my_ip(robot_hostname, PORT), "driver_reverseport": reverse_port}
-    connection = URConnection(robot_hostname, PORT, program)
+    connection = KawasakiConnection(robot_hostname, PORT, program)
     connection.connect()
     connection.send_reset_program()
 
-    connectionRT = URConnectionRT(robot_hostname, RT_PORT)
+    connectionRT = KawasakiConnectionRT(robot_hostname, RT_PORT)
     connectionRT.connect()
 
     set_io_server()
@@ -1021,4 +1030,6 @@ def main():
             pass
         raise
 
-if __name__ == '__main__': main()
+
+if __name__ == '__main__':
+    main()
