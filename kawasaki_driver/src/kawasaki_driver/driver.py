@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 import actionlib
 # import code
 import copy
@@ -878,7 +879,7 @@ def set_io_server():
 def reconfigure_callback(config, level):
     global prevent_programming
     prevent_programming = config.prevent_programming
-    ## What about updating the value on the parameter server?
+    # TODO: What about updating the value on the parameter server?
     return config
 
 
@@ -932,7 +933,6 @@ def main():
     global max_payload
     max_payload = rospy.get_param("~max_payload", MAX_PAYLOAD)
     rospy.loginfo("Bounds for Payload: [%s, %s]" % (min_payload, max_payload))
-
 
     # Sets up the server for the robot to connect to
     server = TCPServer(("", reverse_port), CommanderTCPHandler)
@@ -993,7 +993,7 @@ def main():
                         break
                 rospy.loginfo("Robot connected")
 
-                #provider for service calls
+                # provider for service calls
                 if service_provider:
                     service_provider.set_robot(r)
                 else:
