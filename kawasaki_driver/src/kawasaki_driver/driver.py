@@ -1,29 +1,29 @@
 #!/usr/bin/env python
-# import roslib; roslib.load_manifest('ur_driver')
-import time, sys, threading, math
+import actionlib
+# import code
 import copy
 import datetime
-import socket, select
-import struct
-import traceback, code
+import math
 import optparse
-import SocketServer
-
 import rospy
-# import actionlib
-# from sensor_msgs.msg import JointState
-# from control_msgs.msg import FollowJointTrajectoryAction
-# from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+import select
+import socket
+import SocketServer
+import struct
+import sys
+import threading
+import time
+# import traceback
+from sensor_msgs.msg import JointState
+from control_msgs.msg import FollowJointTrajectoryAction
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 # from geometry_msgs.msg import WrenchStamped
 #
 # from dynamic_reconfigure.server import Server
-# from ur_driver.cfg import URDriverConfig
+# from kawasaki_driver.cfg import KawasakiDriverConfig
 #
 # from ur_driver.deserialize import RobotState, RobotMode
 # from ur_driver.deserializeRT import RobotStateRT
-#
-# from ur_msgs.srv import SetPayload, SetIO
-# from ur_msgs.msg import *
 
 # renaming classes
 # DigitalIn = Digital
@@ -64,7 +64,7 @@ import rospy
 # MULT_analog = 1000000.0
 # MULT_analog_robotstate = 0.1
 #
-# #Max Velocity accepted by ur_driver
+# #Max Velocity accepted by kawasaki_driver
 # MAX_VELOCITY = 10.0
 # #Using a very high value in order to not limit execution of trajectories being sent from MoveIt!
 #
@@ -120,11 +120,13 @@ def log(s):
 class EOF(Exception):
     pass
 
+
 # TODO(ntonci): Implement
 RESET_PROGRAM = ''
 
 PORT = 23       # 10 Hz, RobotState
 HOSTNAME = "192.168.2.2"
+
 
 class KawasakiConnection(object):
     TIMEOUT = 1.0
@@ -185,8 +187,10 @@ class KawasakiConnection(object):
     def __trigger_disconnected(self):
         log("Robot disconnected")
         self.robot_state = self.DISCONNECTED
+
     def __trigger_ready_to_program(self):
         rospy.loginfo("Robot ready to program")
+
     def __trigger_halted(self):
         log("Halted")
 
@@ -201,40 +205,6 @@ class KawasakiConnection(object):
             rospy.logfatal("Real robot is no longer enabled.  Driver is fuxored")
             time.sleep(2)
             sys.exit(1)
-
-        ###
-        # IO-Support is EXPERIMENTAL
-        #
-        # Notes:
-        # - Where are the flags coming from? Do we need flags? No, as 'prog' does not use them and other scripts are not running!
-        # - analog_input2 and analog_input3 are within ToolData
-        # - What to do with the different analog_input/output_range/domain?
-        # - Shall we have appropriate ur_msgs definitions in order to reflect MasterboardData, ToolData,...?
-        ###
-
-        # Use information from the robot state packet to publish IOStates
-        msg = IOStates()
-        #gets digital in states
-        for i in range(0, 10):
-            msg.digital_in_states.append(DigitalIn(i, (state.masterboard_data.digital_input_bits & (1<<i))>>i))
-        #gets digital out states
-        for i in range(0, 10):
-            msg.digital_out_states.append(DigitalOut(i, (state.masterboard_data.digital_output_bits & (1<<i))>>i))
-        #gets analog_in[0] state
-        inp = state.masterboard_data.analog_input0 / MULT_analog_robotstate
-        msg.analog_in_states.append(Analog(0, inp))
-        #gets analog_in[1] state
-        inp = state.masterboard_data.analog_input1 / MULT_analog_robotstate
-        msg.analog_in_states.append(Analog(1, inp))
-        #gets analog_out[0] state
-        inp = state.masterboard_data.analog_output0 / MULT_analog_robotstate
-        msg.analog_out_states.append(Analog(0, inp))
-        #gets analog_out[1] state
-        inp = state.masterboard_data.analog_output1 / MULT_analog_robotstate
-        msg.analog_out_states.append(Analog(1, inp))
-        #print "Publish IO-Data from robot state data"
-        pub_io_states.publish(msg)
-
 
         # Updates the state machine that determines whether we can program the robot.
         can_execute = (state.robot_mode_data.robot_mode in [RobotMode.READY, RobotMode.RUNNING])
@@ -396,6 +366,7 @@ def setConnectedRobot(r):
         connected_robot = r
         connected_robot_cond.notify()
 
+
 def getConnectedRobot(wait=False, timeout=-1):
     started = time.time()
     with connected_robot_lock:
@@ -405,6 +376,7 @@ def getConnectedRobot(wait=False, timeout=-1):
                     break
                 connected_robot_cond.wait(0.2)
         return connected_robot
+
 
 # Receives messages from the robot over the socket
 class CommanderTCPHandler(SocketServer.BaseRequestHandler):
@@ -499,11 +471,11 @@ class CommanderTCPHandler(SocketServer.BaseRequestHandler):
                  [MULT_time * t]
         self.__send_message(params)
 
-    #Experimental set_payload implementation
-    def send_payload(self,payload):
+    # Experimental set_payload implementation
+    def send_payload(self, payload):
         self.__send_message([MSG_SET_PAYLOAD, payload * MULT_payload])
 
-    #Experimental set_digital_output implementation
+    # Experimental set_digital_output implementation
     def set_digital_out(self, pinnum, value):
         self.__send_message([MSG_SET_DIGITAL_OUT, pinnum, value])
         time.sleep(IO_SLEEP_TIME)
@@ -544,12 +516,14 @@ def joinAll(threads):
         for t in threads:
             t.join(0.2)
 
+
 # Returns the duration between moving from point (index-1) to point
 # index in the given JointTrajectory
 def get_segment_duration(traj, index):
     if index == 0:
         return traj.points[0].time_from_start.to_sec()
     return (traj.points[index].time_from_start - traj.points[index-1].time_from_start).to_sec()
+
 
 # Reorders the JointTrajectory traj according to the order in
 # joint_names.  Destructive.
@@ -565,6 +539,7 @@ def reorder_traj_joints(traj, joint_names):
             time_from_start = p.time_from_start))
     traj.joint_names = joint_names
     traj.points = new_points
+
 
 def interp_cubic(p0, p1, t_abs):
     T = (p1.time_from_start - p0.time_from_start).to_sec()
@@ -583,6 +558,7 @@ def interp_cubic(p0, p1, t_abs):
         qddot[i] = 2*c + 6*d*t
     return JointTrajectoryPoint(positions=q, velocities=qdot, accelerations=qddot, time_from_start=rospy.Duration(t_abs))
 
+
 # Returns (q, qdot, qddot) for sampling the JointTrajectory at time t.
 # The time t is the time since the trajectory was started.
 def sample_traj(traj, t):
@@ -599,6 +575,7 @@ def sample_traj(traj, t):
         i += 1
     return interp_cubic(traj.points[i], traj.points[i+1], t)
 
+
 def traj_is_finite(traj):
     for pt in traj.points:
         for p in pt.positions:
@@ -609,6 +586,7 @@ def traj_is_finite(traj):
                 return False
     return True
 
+
 def has_limited_velocities(traj):
     for p in traj.points:
         for v in p.velocities:
@@ -616,11 +594,13 @@ def has_limited_velocities(traj):
                 return False
     return True
 
+
 def has_velocities(traj):
     for p in traj.points:
         if len(p.velocities) != len(p.positions):
             return False
     return True
+
 
 def within_tolerance(a_vec, b_vec, tol_vec):
     for a, b, tol in zip(a_vec, b_vec, tol_vec):
@@ -628,10 +608,11 @@ def within_tolerance(a_vec, b_vec, tol_vec):
             return False
     return True
 
+
 class URServiceProvider(object):
     def __init__(self, robot):
         self.robot = robot
-        rospy.Service('ur_driver/setPayload', SetPayload, self.setPayload)
+        rospy.Service('kawasaki_driver/setPayload', SetPayload, self.setPayload)
 
     def set_robot(self, robot):
         self.robot = robot
@@ -647,8 +628,10 @@ class URServiceProvider(object):
             return False
         return True
 
+
 class URTrajectoryFollower(object):
     RATE = 0.02
+
     def __init__(self, robot, goal_time_tolerance=None):
         self.goal_time_tolerance = goal_time_tolerance or rospy.Duration(0.0)
         self.joint_goal_tolerances = [0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
@@ -682,7 +665,8 @@ class URTrajectoryFollower(object):
     # Sets the trajectory to remain stationary at the current position
     # of the robot.
     def init_traj_from_robot(self):
-        if not self.robot: raise Exception("No robot connected")
+        if not self.robot:
+            raise Exception("No robot connected")
         # Busy wait (avoids another mutex)
         state = self.robot.get_joint_states()
         while not state:
@@ -899,7 +883,7 @@ def reconfigure_callback(config, level):
 
 
 def main():
-    rospy.init_node('ur_driver', disable_signals=True)
+    rospy.init_node('kawasaki_driver', disable_signals=True)
     if rospy.get_param("use_sim_time", False):
         rospy.logwarn("use_sim_time is set!!!")
 
@@ -936,10 +920,10 @@ def main():
         rospy.loginfo("No calibration offsets loaded from urdf")
 
     # Reads the maximum velocity
-    # The max_velocity parameter is only used for debugging in the ur_driver. It's not related to actual velocity limits
+    # The max_velocity parameter is only used for debugging in the kawasaki_driver. It's not related to actual velocity limits
     global max_velocity
     max_velocity = rospy.get_param("~max_velocity", MAX_VELOCITY) # [rad/s]
-    rospy.loginfo("Max velocity accepted by ur_driver: %s [rad/s]" % max_velocity)
+    rospy.loginfo("Max velocity accepted by kawasaki_driver: %s [rad/s]" % max_velocity)
 
     # Reads the minimum payload
     global min_payload
@@ -956,7 +940,7 @@ def main():
     thread_commander.daemon = True
     thread_commander.start()
 
-    with open(roslib.packages.get_pkg_dir('ur_driver') + '/prog') as fin:
+    with open(roslib.packages.get_pkg_dir('kawasaki_driver') + '/prog') as fin:
         program = fin.read() % {"driver_hostname": get_my_ip(robot_hostname, PORT), "driver_reverseport": reverse_port}
     connection = KawasakiConnection(robot_hostname, PORT, program)
     connection.connect()
@@ -1025,7 +1009,8 @@ def main():
         try:
             r = getConnectedRobot(wait=False)
             rospy.signal_shutdown("KeyboardInterrupt")
-            if r: r.send_quit()
+            if r:
+                r.send_quit()
         except:
             pass
         raise
