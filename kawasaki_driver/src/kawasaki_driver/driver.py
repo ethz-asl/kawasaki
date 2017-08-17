@@ -98,7 +98,6 @@ import kawasaki_commands as kc
 # pub_io_states = rospy.Publisher('io_states', IOStates, queue_size=1)
 # #dump_state = open('dump_state', 'wb')
 
-
 # def dumpstacks():
 #     id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
 #     code = []
@@ -121,6 +120,7 @@ def log(s):
 # end
 # '''
 
+
 class EOF(Exception):
     pass
 
@@ -128,7 +128,7 @@ class EOF(Exception):
 # TODO(ntonci): Implement
 RESET_PROGRAM = ''
 
-PORT = 23       # 10 Hz, RobotState
+PORT = 23  # 10 Hz, RobotState
 HOSTNAME = "192.168.2.2"
 
 
@@ -156,7 +156,8 @@ class KawasakiConnection(object):
         self.robot_state = self.CONNECTED
         self.__sock = socket.create_connection((self.hostname, self.port))
         self.__keep_running = True
-        self.__thread = threading.Thread(name="KawasakiConnection", target=self.__run)
+        self.__thread = threading.Thread(
+            name="KawasakiConnection", target=self.__run)
         self.__thread.daemon = True
         self.__thread.start()
 
@@ -206,12 +207,15 @@ class KawasakiConnection(object):
         #log("Packet.  Mode=%s" % state.robot_mode_data.robot_mode)
 
         if not state.robot_mode_data.real_robot_enabled:
-            rospy.logfatal("Real robot is no longer enabled.  Driver is fuxored")
+            rospy.logfatal(
+                "Real robot is no longer enabled.  Driver is fuxored")
             time.sleep(2)
             sys.exit(1)
 
         # Updates the state machine that determines whether we can program the robot.
-        can_execute = (state.robot_mode_data.robot_mode in [RobotMode.READY, RobotMode.RUNNING])
+        can_execute = (state.robot_mode_data.robot_mode in [
+            RobotMode.READY, RobotMode.RUNNING
+        ])
         if self.robot_state == self.CONNECTED:
             if can_execute:
                 self.__trigger_ready_to_program()
@@ -228,8 +232,9 @@ class KawasakiConnection(object):
         if len(state.unknown_ptypes) > 0:
             state.unknown_ptypes.sort()
             s_unknown_ptypes = [str(ptype) for ptype in state.unknown_ptypes]
-            self.throttle_warn_unknown(1.0, "Ignoring unknown pkt type(s): %s. "
-                          "Please report." % ", ".join(s_unknown_ptypes))
+            self.throttle_warn_unknown(
+                1.0, "Ignoring unknown pkt type(s): %s. "
+                "Please report." % ", ".join(s_unknown_ptypes))
 
     def throttle_warn_unknown(self, period, msg):
         self.__dict__.setdefault('_last_hit', 0.0)
@@ -249,10 +254,13 @@ class KawasakiConnection(object):
                     #unpack_from requires a buffer of at least 48 bytes
                     while len(self.__buf) >= 48:
                         # Attempts to extract a packet
-                        packet_length, ptype = struct.unpack_from("!IB", self.__buf)
+                        packet_length, ptype = struct.unpack_from(
+                            "!IB", self.__buf)
                         #print("PacketLength: ", packet_length, "; BufferSize: ", len(self.__buf))
                         if len(self.__buf) >= packet_length:
-                            packet, self.__buf = self.__buf[:packet_length], self.__buf[packet_length:]
+                            packet, self.__buf = self.__buf[:
+                                                            packet_length], self.__buf[
+                                                                packet_length:]
                             self.__on_packet(packet)
                         else:
                             break
@@ -287,8 +295,8 @@ class KawasakiConnectionRT(object):
         self.robot_state = self.CONNECTED
         self.__sock = socket.create_connection((self.hostname, self.port))
         self.__keep_running = True
-        self.__thread = threading.Thread(name="KawasakiConnectionRT",
-                                         target=self.__run)
+        self.__thread = threading.Thread(
+            name="KawasakiConnectionRT", target=self.__run)
         self.__thread.daemon = True
         self.__thread.start()
 
@@ -321,7 +329,7 @@ class KawasakiConnectionRT(object):
         for i, q in enumerate(stateRT.q_actual):
             msg.position[i] = q + joint_offsets.get(joint_names[i], 0.0)
         msg.velocity = stateRT.qd_actual
-        msg.effort = [0]*6
+        msg.effort = [0] * 6
         pub_joint_states.publish(msg)
         with last_joint_states_lock:
             last_joint_states = msg
@@ -335,7 +343,6 @@ class KawasakiConnectionRT(object):
         wrench_msg.wrench.torque.y = stateRT.tcp_force[4]
         wrench_msg.wrench.torque.z = stateRT.tcp_force[5]
         pub_wrench.publish(wrench_msg)
-
 
     def __run(self):
         while self.__keep_running:
@@ -351,7 +358,9 @@ class KawasakiConnectionRT(object):
                         packet_length = struct.unpack_from("!i", self.__buf)[0]
                         #print("PacketLength: ", packet_length, "; BufferSize: ", len(self.__buf))
                         if len(self.__buf) >= packet_length:
-                            packet, self.__buf = self.__buf[:packet_length], self.__buf[packet_length:]
+                            packet, self.__buf = self.__buf[:
+                                                            packet_length], self.__buf[
+                                                                packet_length:]
                             self.__on_packet(packet)
                         else:
                             break
@@ -384,7 +393,6 @@ def getConnectedRobot(wait=False, timeout=-1):
 
 # Receives messages from the robot over the socket
 class CommanderTCPHandler(SocketServer.BaseRequestHandler):
-
     def recv_more(self):
         global last_joint_states, last_joint_states_lock
         while True:
@@ -467,7 +475,7 @@ class CommanderTCPHandler(SocketServer.BaseRequestHandler):
         self.__send_message([MSG_QUIT])
 
     def send_servoj(self, waypoint_id, q_actual, t):
-        assert(len(q_actual) == 6)
+        assert (len(q_actual) == 6)
         q_robot = [0.0] * 6
         for i, q in enumerate(q_actual):
             q_robot[i] = q - joint_offsets.get(joint_names[i], 0.0)
@@ -527,7 +535,8 @@ def joinAll(threads):
 def get_segment_duration(traj, index):
     if index == 0:
         return traj.points[0].time_from_start.to_sec()
-    return (traj.points[index].time_from_start - traj.points[index-1].time_from_start).to_sec()
+    return (traj.points[index].time_from_start -
+            traj.points[index - 1].time_from_start).to_sec()
 
 
 # Reorders the JointTrajectory traj according to the order in
@@ -537,11 +546,14 @@ def reorder_traj_joints(traj, joint_names):
 
     new_points = []
     for p in traj.points:
-        new_points.append(JointTrajectoryPoint(
-            positions = [p.positions[i] for i in order],
-            velocities = [p.velocities[i] for i in order] if p.velocities else [],
-            accelerations = [p.accelerations[i] for i in order] if p.accelerations else [],
-            time_from_start = p.time_from_start))
+        new_points.append(
+            JointTrajectoryPoint(
+                positions=[p.positions[i] for i in order],
+                velocities=[p.velocities[i] for i in order]
+                if p.velocities else [],
+                accelerations=[p.accelerations[i] for i in order]
+                if p.accelerations else [],
+                time_from_start=p.time_from_start))
     traj.joint_names = joint_names
     traj.points = new_points
 
@@ -555,13 +567,19 @@ def interp_cubic(p0, p1, t_abs):
     for i in range(len(p0.positions)):
         a = p0.positions[i]
         b = p0.velocities[i]
-        c = (-3*p0.positions[i] + 3*p1.positions[i] - 2*T*p0.velocities[i] - T*p1.velocities[i]) / T**2
-        d = (2*p0.positions[i] - 2*p1.positions[i] + T*p0.velocities[i] + T*p1.velocities[i]) / T**3
+        c = (-3 * p0.positions[i] + 3 * p1.positions[i] -
+             2 * T * p0.velocities[i] - T * p1.velocities[i]) / T**2
+        d = (2 * p0.positions[i] - 2 * p1.positions[i] + T * p0.velocities[i] +
+             T * p1.velocities[i]) / T**3
 
-        q[i] = a + b*t + c*t**2 + d*t**3
-        qdot[i] = b + 2*c*t + 3*d*t**2
-        qddot[i] = 2*c + 6*d*t
-    return JointTrajectoryPoint(positions=q, velocities=qdot, accelerations=qddot, time_from_start=rospy.Duration(t_abs))
+        q[i] = a + b * t + c * t**2 + d * t**3
+        qdot[i] = b + 2 * c * t + 3 * d * t**2
+        qddot[i] = 2 * c + 6 * d * t
+    return JointTrajectoryPoint(
+        positions=q,
+        velocities=qdot,
+        accelerations=qddot,
+        time_from_start=rospy.Duration(t_abs))
 
 
 # Returns (q, qdot, qddot) for sampling the JointTrajectory at time t.
@@ -576,9 +594,9 @@ def sample_traj(traj, t):
 
     # Finds the (middle) segment containing t
     i = 0
-    while traj.points[i+1].time_from_start.to_sec() < t:
+    while traj.points[i + 1].time_from_start.to_sec() < t:
         i += 1
-    return interp_cubic(traj.points[i], traj.points[i+1], t)
+    return interp_cubic(traj.points[i], traj.points[i + 1], t)
 
 
 def traj_is_finite(traj):
@@ -617,7 +635,8 @@ def within_tolerance(a_vec, b_vec, tol_vec):
 class KSServiceProvider(object):
     def __init__(self, robot):
         self.robot = robot
-        rospy.Service('kawasaki_driver/setPayload', SetPayload, self.setPayload)
+        rospy.Service('kawasaki_driver/setPayload', SetPayload,
+                      self.setPayload)
 
     def set_robot(self, robot):
         self.robot = robot
@@ -644,9 +663,12 @@ class KSTrajectoryFollower(object):
         self.following_lock = threading.Lock()
         self.T0 = time.time()
         self.robot = robot
-        self.server = actionlib.ActionServer("follow_joint_trajectory",
-                                             FollowJointTrajectoryAction,
-                                             self.on_goal, self.on_cancel, auto_start=False)
+        self.server = actionlib.ActionServer(
+            "follow_joint_trajectory",
+            FollowJointTrajectoryAction,
+            self.on_goal,
+            self.on_cancel,
+            auto_start=False)
 
         self.goal_handle = None
         self.traj = None
@@ -656,7 +678,8 @@ class KSTrajectoryFollower(object):
         self.pending_i = 0
         self.last_point_sent = True
 
-        self.update_timer = rospy.Timer(rospy.Duration(self.RATE), self._update)
+        self.update_timer = rospy.Timer(
+            rospy.Duration(self.RATE), self._update)
 
     def set_robot(self, robot):
         # Cancels any goals in progress
@@ -681,11 +704,13 @@ class KSTrajectoryFollower(object):
         self.traj_t0 = time.time()
         self.traj = JointTrajectory()
         self.traj.joint_names = joint_names
-        self.traj.points = [JointTrajectoryPoint(
-            positions = state.position,
-            velocities = [0] * 6,
-            accelerations = [0] * 6,
-            time_from_start = rospy.Duration(0.0))]
+        self.traj.points = [
+            JointTrajectoryPoint(
+                positions=state.position,
+                velocities=[0] * 6,
+                accelerations=[0] * 6,
+                time_from_start=rospy.Duration(0.0))
+        ]
 
     def start(self):
         self.init_traj_from_robot()
@@ -702,7 +727,8 @@ class KSTrajectoryFollower(object):
             return
 
         # Checks if the joints are just incorrect
-        if set(goal_handle.get_goal().trajectory.joint_names) != set(joint_names):
+        if set(goal_handle.get_goal().trajectory.joint_names) != set(
+                joint_names):
             rospy.logerr("Received a goal with incorrect joint names: (%s)" % \
                          ', '.join(goal_handle.get_goal().trajectory.joint_names))
             goal_handle.set_rejected()
@@ -710,7 +736,8 @@ class KSTrajectoryFollower(object):
 
         if not traj_is_finite(goal_handle.get_goal().trajectory):
             rospy.logerr("Received a goal with infinites or NaNs")
-            goal_handle.set_rejected(text="Received a goal with infinites or NaNs")
+            goal_handle.set_rejected(
+                text="Received a goal with infinites or NaNs")
             return
 
         # Checks that the trajectory has velocities
@@ -733,7 +760,8 @@ class KSTrajectoryFollower(object):
             if self.goal_handle:
                 # Cancels the existing goal
                 self.goal_handle.set_canceled()
-                self.first_waypoint_id += len(self.goal_handle.get_goal().trajectory.points)
+                self.first_waypoint_id += len(
+                    self.goal_handle.get_goal().trajectory.points)
                 self.goal_handle = None
 
             # Inserts the current setpoint at the head of the trajectory
@@ -757,7 +785,8 @@ class KSTrajectoryFollower(object):
                 now = time.time()
                 point0 = sample_traj(self.traj, now - self.traj_t0)
                 point0.time_from_start = rospy.Duration(0.0)
-                point1 = sample_traj(self.traj, now - self.traj_t0 + STOP_DURATION)
+                point1 = sample_traj(self.traj,
+                                     now - self.traj_t0 + STOP_DURATION)
                 point1.velocities = [0] * 6
                 point1.accelerations = [0] * 6
                 point1.time_from_start = rospy.Duration(STOP_DURATION)
@@ -776,11 +805,13 @@ class KSTrajectoryFollower(object):
     def _update(self, event):
         if self.robot and self.traj:
             now = time.time()
-            if (now - self.traj_t0) <= self.traj.points[-1].time_from_start.to_sec():
-                self.last_point_sent = False #sending intermediate points
+            if (now - self.traj_t0
+                ) <= self.traj.points[-1].time_from_start.to_sec():
+                self.last_point_sent = False  #sending intermediate points
                 setpoint = sample_traj(self.traj, now - self.traj_t0)
                 try:
-                    self.robot.send_servoj(999, setpoint.positions, 4 * self.RATE)
+                    self.robot.send_servoj(999, setpoint.positions,
+                                           4 * self.RATE)
                 except socket.error:
                     pass
 
@@ -791,19 +822,25 @@ class KSTrajectoryFollower(object):
                 # position and errors out due to not reaching the goal point.
                 last_point = self.traj.points[-1]
                 state = self.robot.get_joint_states()
-                position_in_tol = within_tolerance(state.position, last_point.positions, self.joint_goal_tolerances)
+                position_in_tol = within_tolerance(state.position,
+                                                   last_point.positions,
+                                                   self.joint_goal_tolerances)
                 # Performing this check to try and catch our error condition.  We will always
                 # send the last point just in case.
                 if not position_in_tol:
-                    rospy.logwarn("Trajectory time exceeded and current robot state not at goal, last point required")
+                    rospy.logwarn(
+                        "Trajectory time exceeded and current robot state not at goal, last point required"
+                    )
                     rospy.logwarn("Current trajectory time: %s, last point time: %s" % \
                                 (now - self.traj_t0, self.traj.points[-1].time_from_start.to_sec()))
                     rospy.logwarn("Desired: %s\nactual: %s\nvelocity: %s" % \
                                           (last_point.positions, state.position, state.velocity))
-                setpoint = sample_traj(self.traj, self.traj.points[-1].time_from_start.to_sec())
+                setpoint = sample_traj(
+                    self.traj, self.traj.points[-1].time_from_start.to_sec())
 
                 try:
-                    self.robot.send_servoj(999, setpoint.positions, 4 * self.RATE)
+                    self.robot.send_servoj(999, setpoint.positions,
+                                           4 * self.RATE)
                     self.last_point_sent = True
                 except socket.error:
                     pass
@@ -812,8 +849,10 @@ class KSTrajectoryFollower(object):
                 if self.goal_handle:
                     last_point = self.traj.points[-1]
                     state = self.robot.get_joint_states()
-                    position_in_tol = within_tolerance(state.position, last_point.positions, [0.1]*6)
-                    velocity_in_tol = within_tolerance(state.velocity, last_point.velocities, [0.05]*6)
+                    position_in_tol = within_tolerance(
+                        state.position, last_point.positions, [0.1] * 6)
+                    velocity_in_tol = within_tolerance(
+                        state.velocity, last_point.velocities, [0.05] * 6)
                     if position_in_tol and velocity_in_tol:
                         # The arm reached the goal (and isn't moving).  Succeeding
                         self.goal_handle.set_succeeded()
@@ -826,9 +865,9 @@ class KSTrajectoryFollower(object):
                     #    self.goal_handle = None
 
 
-# joint_names: list of joints
-#
-# returns: { "joint_name" : joint_offset }
+                    # joint_names: list of joints
+                    #
+                    # returns: { "joint_name" : joint_offset }
 def load_joint_offsets(joint_names):
     from lxml import etree
     robot_description = rospy.get_param("robot_description")
@@ -843,9 +882,12 @@ def load_joint_offsets(joint_names):
         if len(joint_elt) == 1:
             calibration_offset = float(joint_elt[0].get("value"))
             result[joint] = calibration_offset
-            rospy.loginfo("Found calibration offset for joint \"%s\": %.4f" % (joint, calibration_offset))
+            rospy.loginfo("Found calibration offset for joint \"%s\": %.4f" %
+                          (joint, calibration_offset))
         elif len(joint_elt) > 1:
-            rospy.logerr("Too many joints matched on \"%s\". Please report to package maintainer(s)." % joint)
+            rospy.logerr(
+                "Too many joints matched on \"%s\". Please report to package maintainer(s)."
+                % joint)
         else:
             rospy.logwarn("No calibration offset for joint \"%s\"" % joint)
     return result
@@ -904,7 +946,8 @@ def main():
     # joint_names = [prefix + name for name in JOINT_NAMES]
 
     # Parses command line arguments
-    parser = optparse.OptionParser(usage="usage: %prog robot_hostname [reverse_port]")
+    parser = optparse.OptionParser(
+        usage="usage: %prog robot_hostname [reverse_port]")
     (options, args) = parser.parse_args(rospy.myargv()[1:])
     if len(args) < 1:
         parser.error("You must specify the robot hostname")
@@ -915,7 +958,7 @@ def main():
         robot_hostname = args[0]
         reverse_port = int(args[1])
         if not (0 <= reverse_port <= 65535):
-                parser.error("You entered an invalid port number")
+            parser.error("You entered an invalid port number")
     else:
         parser.error("Wrong number of parameters")
 
@@ -943,12 +986,16 @@ def main():
 
     # Sets up the server for the robot to connect to
     server = TCPServer(("", reverse_port), CommanderTCPHandler)
-    thread_commander = threading.Thread(name="CommanderHandler", target=server.serve_forever)
+    thread_commander = threading.Thread(
+        name="CommanderHandler", target=server.serve_forever)
     thread_commander.daemon = True
     thread_commander.start()
 
     with open(roslib.packages.get_pkg_dir('kawasaki_driver') + '/prog') as fin:
-        program = fin.read() % {"driver_hostname": get_my_ip(robot_hostname, PORT), "driver_reverseport": reverse_port}
+        program = fin.read() % {
+            "driver_hostname": get_my_ip(robot_hostname, PORT),
+            "driver_reverseport": reverse_port
+        }
     connection = KawasakiConnection(robot_hostname, PORT, program)
     connection.connect()
     connection.send_reset_program()
@@ -1009,7 +1056,8 @@ def main():
                 if action_server:
                     action_server.set_robot(r)
                 else:
-                    action_server = KSTrajectoryFollower(r, rospy.Duration(1.0))
+                    action_server = KSTrajectoryFollower(
+                        r, rospy.Duration(1.0))
                     action_server.start()
 
     except KeyboardInterrupt:
