@@ -935,7 +935,14 @@ def main():
     if rospy.get_param("use_sim_time", False):
         rospy.logwarn("use_sim_time is set!!!")
 
-    kc.connect_to_robot("192.168.0.91", 23)
+    connection_socket_send, connection_socket_receive = kc.connect_to_robot(
+        "192.168.0.91", 23)
+    for i in range(2):
+        kc.get_state(connection_socket_receive)
+
+    connection_socket_send.close()
+    time.sleep(1)
+    connection_socket_receive.close()
     exit()
     # global prevent_programming
     # reconfigure_srv = Server(URDriverConfig, reconfigure_callback)

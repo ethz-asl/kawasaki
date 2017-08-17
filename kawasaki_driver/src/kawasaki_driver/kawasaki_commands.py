@@ -18,7 +18,7 @@ def establish_socket_connection(socekt_connection, address_port,
     except socket.timeout:
         print("Sending socket connection could not be established.")
         exit()
-    message = socekt_connection.recvfrom(500)  # in python3: recvmsg
+    message = socekt_connection.recvfrom(500)  # in python3: recvfrom
     if (message ==
         ('\xff\xfd\x18\xff\xfb\x01\xff\xfa\x18\x01\x01\xff\xf0\xff\xfb\x03\rConnecting to Kawasaki E Controller\r\n\r\nlogin: ',
          None)):
@@ -53,22 +53,73 @@ def connect_to_robot(address="192.168.2.2", port=23):
     connection_socket_receive = establish_socket_connection(
         connection_socket_receive, (address, port), "receive", 2)
 
-    connection_socket_send.close()
-    time.sleep(1)
-    connection_socket_receive.close()
     # TODO(ntonci): Check message and write a parser to check if proper
     # connection was established
     # TODO(ntonci): Check if there is a nicer way to read msgs since there
     # might be some delay in-between commands
-    exit()
+    return connection_socket_send, connection_socket_receive
 
 
-def get_state():
-    global connection_socket
+def state_message_parser(message):
+    split_msg = message.split('\r\n')
+    joint_values = parse_and_convert_to_float(split_msg[2])
+    pose_values = parse_and_convert_to_float(split_msg[4])
+
+    ros_now = rospy.Time.now()
+
+    joint_values = [math.radians(angle) for angle in joint_values]
+
+    joint_state_message = JointState()
+    joint_state_message.header = Header()
+    joint_state_message.header.stamp = ros_now
+    joint_state_message.header.frame_id = 'joint'
+    joint_state_message.name = split_msg[1].split()
+    joint_state_message.position = joint_values
+    joint_state_message.velocity = []
+    joint_state_message.effort = []
+
+    # pose_state_message = JointState()
+    # pose_state_message.header = Header()
+    # pose_state_message.header.stamp = ros_now
+    # pose_state_message.name = split_msg[3].split()
+    # pose_state_message.position = pose_values
+    # pose_state_message.velocity = []
+    # pose_state_message.effort = []
+
+    pose_state_message = PoseStamped()
+    pose_state_message.header = Header()
+    pose_state_message.header.stamp = ros_now
+    pose_state_message.header.frame_id = 'base'
+    pose_state_message.pose.position.x = pose_values[0] / 1000.
+    pose_state_message.pose.position.y = pose_values[1] / 1000.
+    pose_state_message.pose.position.z = pose_values[2] / 1000.
+    quaternion = tf.transformations.quaternion_from_euler(
+        math.radians(pose_values[3]),
+        math.radians(pose_values[4]), math.radians(pose_values[5]))
+    pose_state_message.pose.orientation.x = quaternion[0]
+    pose_state_message.pose.orientation.y = quaternion[1]
+    pose_state_message.pose.orientation.z = quaternion[2]
+    pose_state_message.pose.orientation.w = quaternion[3]
+
+    return joint_state_message, pose_state_message
+
+
+def get_state(connection_socket):
     connection_socket.send(b'wh\n')
     time.sleep(0.1)
-    message = connection_socket.recvmsg(500)
-    print(message)
+    message = connection_socket.recvfrom(500)
+    import difflib
+    if (message[0][0:66] ==
+            'wh\r\n     JT1       JT2       JT3       JT4       JT5       JT6  \r\n'):
+        print("Got joint_state message.")
+        joint_states_unparsed = message[0]
+        joint_state_message, pose_state_message = state_message_parser(
+            joint_states_unparsed)
+        print(joint_state_message)
+        print(pose_state_message)
+    else:
+        print("Got wrong return message after executing 'wh':")
+        print(message)
     # TODO(ntonci): Parse the message
 
 
@@ -79,37 +130,13 @@ def set_state():
     connection_socket.send('')
     # TODO(ntonci): We need to wait here for the feedback, it should be
     # on-blocking I guess
-    message = connection_socket.recvmsg(500)
+    message = connection_socket.recvfrom(500)
     print(message)
     # TODO(ntonci): Check the output and parse it to check if the execution was
     # done properly
 
 
-def state_message_parser(message):
-    split_msg = message.split('\r\n')
-    joint_values = parse_and_convert_to_float(split_msg[2])
-    pose_values = parse_and_convert_to_float(split_msg[4])
-
-    joint_state_message = JointState()
-    joint_state_message.header = Header()
-    joint_state_message.header.stamp = rospy.Time.now()
-    joint_state_message.name = split_msg[1].split()
-    joint_state_message.position = joint_values
-    joint_state_message.velocity = []
-    joint_state_message.effort = []
-
-    pose_state_message = JointState()
-    pose_state_message.header = Header()
-    pose_state_message.header.stamp = rospy.Time.now()
-    pose_state_message.name = split_msg[3].split()
-    pose_state_message.position = pose_values
-    pose_state_message.velocity = []
-    pose_state_message.effort = []
-
-    return joint_state_message, pose_state_message
-
-
-def create_pose_message(pose):
+def create_lmove_message(pose):
     quaternion = (pose.pose.orientation.x, pose.pose.orientation.y,
                   pose.pose.orientation.z, pose.pose.orientation.w)
     euler = tf.transformations.euler_from_quaternion(
@@ -135,7 +162,7 @@ def parse_and_convert_to_float(string_message):
 
 
 def read_from_socket(connection_socket):
-    message = connection_socket.recvmsg(500)
+    message = connection_socket.recvfrom(500)
     # Check if the type of message is joint states.
     if (message[0][0:71] ==
             b'wh\r\n     JT1       JT2       JT3       JT4       JT5       JT6  \r\n'):
