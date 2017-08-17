@@ -610,7 +610,7 @@ def within_tolerance(a_vec, b_vec, tol_vec):
     return True
 
 
-class URServiceProvider(object):
+class KSServiceProvider(object):
     def __init__(self, robot):
         self.robot = robot
         rospy.Service('kawasaki_driver/setPayload', SetPayload, self.setPayload)
@@ -630,7 +630,7 @@ class URServiceProvider(object):
         return True
 
 
-class URTrajectoryFollower(object):
+class KSTrajectoryFollower(object):
     RATE = 0.02
 
     def __init__(self, robot, goal_time_tolerance=None):
@@ -997,12 +997,12 @@ def main():
                 if service_provider:
                     service_provider.set_robot(r)
                 else:
-                    service_provider = URServiceProvider(r)
+                    service_provider = KSServiceProvider(r)
 
                 if action_server:
                     action_server.set_robot(r)
                 else:
-                    action_server = URTrajectoryFollower(r, rospy.Duration(1.0))
+                    action_server = KSTrajectoryFollower(r, rospy.Duration(1.0))
                     action_server.start()
 
     except KeyboardInterrupt:
