@@ -18,6 +18,9 @@ import time
 from sensor_msgs.msg import JointState
 from control_msgs.msg import FollowJointTrajectoryAction
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+
+import kawasaki_commands as kc
+
 # from geometry_msgs.msg import WrenchStamped
 #
 # from dynamic_reconfigure.server import Server
@@ -105,7 +108,7 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 #             code.append('File: "%s", line %d, in %s' % (filename, lineno, name))
 #             if line:
 #                 code.append("  %s" % (line.strip()))
-#     print "\n".join(code)
+#     print("\n".join(code))
 
 
 def log(s):
@@ -400,49 +403,50 @@ class CommanderTCPHandler(SocketServer.BaseRequestHandler):
                     raise EOF()
 
     def handle(self):
-        self.__socket_lock = threading.Lock()
-        setConnectedRobot(self)
-        print "Handling a request"
-        try:
-            buf = self.recv_more()
-            if not buf: return
-
-            while True:
-                #print "Buf:", [ord(b) for b in buf]
-
-                # Unpacks the message type
-                mtype = struct.unpack_from("!i", buf, 0)[0]
-                buf = buf[4:]
-                #print "Message type:", mtype
-
-                if mtype == MSG_OUT:
-                    # Unpacks string message, terminated by tilde
-                    i = buf.find("~")
-                    while i < 0:
-                        buf = buf + self.recv_more()
-                        i = buf.find("~")
-                        if len(buf) > 2000:
-                            raise Exception("Probably forgot to terminate a string: %s..." % buf[:150])
-                    s, buf = buf[:i], buf[i+1:]
-                    log("Out: %s" % s)
-
-                elif mtype == MSG_QUIT:
-                    print "Quitting"
-                    raise EOF("Received quit")
-                elif mtype == MSG_WAYPOINT_FINISHED:
-                    while len(buf) < 4:
-                        buf = buf + self.recv_more()
-                    waypoint_id = struct.unpack_from("!i", buf, 0)[0]
-                    buf = buf[4:]
-                    print "Waypoint finished (not handled)"
-                else:
-                    raise Exception("Unknown message type: %i" % mtype)
-
-                if not buf:
-                    buf = buf + self.recv_more()
-        except EOF, ex:
-            print "Connection closed (command):", ex
-            setConnectedRobot(None)
+        pass
+        # self.__socket_lock = threading.Lock()
+        # setConnectedRobot(self)
+        # print("Handling a request")
+        # try:
+        #     buf = self.recv_more()
+        #     if not buf: return
+        #
+        #     while True:
+        #         #print("Buf:", [ord(b) for b in buf])
+        #
+        #         # Unpacks the message type
+        #         mtype = struct.unpack_from("!i", buf, 0)[0]
+        #         buf = buf[4:]
+        #         #print("Message type:", mtype)
+        #
+        #         if mtype == MSG_OUT:
+        #             # Unpacks string message, terminated by tilde
+        #             i = buf.find("~")
+        #             while i < 0:
+        #                 buf = buf + self.recv_more()
+        #                 i = buf.find("~")
+        #                 if len(buf) > 2000:
+        #                     raise Exception("Probably forgot to terminate a string: %s..." % buf[:150])
+        #             s, buf = buf[:i], buf[i+1:]
+        #             log("Out: %s" % s)
+        #
+        #         elif mtype == MSG_QUIT:
+        #             print("Quitting")
+        #             raise EOF("Received quit")
+        #         elif mtype == MSG_WAYPOINT_FINISHED:
+        #             while len(buf) < 4:
+        #                 buf = buf + self.recv_more()
+        #             waypoint_id = struct.unpack_from("!i", buf, 0)[0]
+        #             buf = buf[4:]
+        #             print("Waypoint finished (not handled)")
+        #         else:
+        #             raise Exception("Unknown message type: %i" % mtype)
+        #
+        #         if not buf:
+        #             buf = buf + self.recv_more()
+        # except EOF, ex:
+        #     print("Connection closed (command):", ex)
+        #     setConnectedRobot(None)
 
     def __send_message(self, data):
         """
@@ -620,7 +624,8 @@ class KSServiceProvider(object):
 
     def setPayload(self, req):
         if req.payload < min_payload or req.payload > max_payload:
-            print 'ERROR: Payload ' + str(req.payload) + ' out of bounds (' + str(min_payload) + ', ' + str(max_payload) + ')'
+            print('ERROR: Payload ' + str(req.payload) + ' out of bounds (' +
+                  str(min_payload) + ', ' + str(max_payload) + ')')
             return False
 
         if self.robot:
@@ -685,7 +690,7 @@ class KSTrajectoryFollower(object):
     def start(self):
         self.init_traj_from_robot()
         self.server.start()
-        print "The action server for this driver has been started"
+        print("The action server for this driver has been started")
 
     def on_goal(self, goal_handle):
         log("on_goal")
@@ -888,13 +893,15 @@ def main():
     if rospy.get_param("use_sim_time", False):
         rospy.logwarn("use_sim_time is set!!!")
 
-    global prevent_programming
-    reconfigure_srv = Server(URDriverConfig, reconfigure_callback)
+    kc.connect_to_robot("192.168.0.91", 23)
+    exit()
+    # global prevent_programming
+    # reconfigure_srv = Server(URDriverConfig, reconfigure_callback)
 
     prefix = rospy.get_param("~prefix", "")
-    print "Setting prefix to %s" % prefix
+    print("Setting prefix to %s" % prefix)
     global joint_names
-    joint_names = [prefix + name for name in JOINT_NAMES]
+    # joint_names = [prefix + name for name in JOINT_NAMES]
 
     # Parses command line arguments
     parser = optparse.OptionParser(usage="usage: %prog robot_hostname [reverse_port]")
@@ -903,7 +910,7 @@ def main():
         parser.error("You must specify the robot hostname")
     elif len(args) == 1:
         robot_hostname = args[0]
-        reverse_port = DEFAULT_REVERSE_PORT
+        # reverse_port = DEFAULT_REVERSE_PORT
     elif len(args) == 2:
         robot_hostname = args[0]
         reverse_port = int(args[1])
@@ -914,25 +921,25 @@ def main():
 
     # Reads the calibrated joint offsets from the URDF
     global joint_offsets
-    joint_offsets = load_joint_offsets(joint_names)
-    if len(joint_offsets) > 0:
-        rospy.loginfo("Loaded calibration offsets from urdf: %s" % joint_offsets)
-    else:
-        rospy.loginfo("No calibration offsets loaded from urdf")
+    # joint_offsets = load_joint_offsets(joint_names)
+    # if len(joint_offsets) > 0:
+    #     rospy.loginfo("Loaded calibration offsets from urdf: %s" % joint_offsets)
+    # else:
+    #     rospy.loginfo("No calibration offsets loaded from urdf")
 
     # Reads the maximum velocity
     # The max_velocity parameter is only used for debugging in the kawasaki_driver. It's not related to actual velocity limits
-    global max_velocity
-    max_velocity = rospy.get_param("~max_velocity", MAX_VELOCITY) # [rad/s]
-    rospy.loginfo("Max velocity accepted by kawasaki_driver: %s [rad/s]" % max_velocity)
+    # global max_velocity
+    # max_velocity = rospy.get_param("~max_velocity", MAX_VELOCITY) # [rad/s]
+    # rospy.loginfo("Max velocity accepted by kawasaki_driver: %s [rad/s]" % max_velocity)
 
     # Reads the minimum payload
-    global min_payload
-    min_payload = rospy.get_param("~min_payload", MIN_PAYLOAD)
+    # global min_payload
+    # min_payload = rospy.get_param("~min_payload", MIN_PAYLOAD)
     # Reads the maximum payload
-    global max_payload
-    max_payload = rospy.get_param("~max_payload", MAX_PAYLOAD)
-    rospy.loginfo("Bounds for Payload: [%s, %s]" % (min_payload, max_payload))
+    # global max_payload
+    # max_payload = rospy.get_param("~max_payload", MAX_PAYLOAD)
+    # rospy.loginfo("Bounds for Payload: [%s, %s]" % (min_payload, max_payload))
 
     # Sets up the server for the robot to connect to
     server = TCPServer(("", reverse_port), CommanderTCPHandler)
@@ -958,18 +965,18 @@ def main():
             # Checks for disconnect
             if getConnectedRobot(wait=False):
                 time.sleep(0.2)
-                try:
-                    prevent_programming = rospy.get_param("~prevent_programming")
-                    update = {'prevent_programming': prevent_programming}
-                    reconfigure_srv.update_configuration(update)
-                except KeyError, ex:
-                    print "Parameter 'prevent_programming' not set. Value: " + str(prevent_programming)
-                    pass
-                if prevent_programming:
-                    print "Programming now prevented"
-                    connection.send_reset_program()
+                # try:
+                #     prevent_programming = rospy.get_param("~prevent_programming")
+                #     update = {'prevent_programming': prevent_programming}
+                #     reconfigure_srv.update_configuration(update)
+                # except KeyError, ex:
+                #     print("Parameter 'prevent_programming' not set. Value: " + str(prevent_programming))
+                #     pass
+                # if prevent_programming:
+                #     print("Programming now prevented")
+                #     connection.send_reset_program()
             else:
-                print "Disconnected.  Reconnecting"
+                print("Disconnected.  Reconnecting")
                 if action_server:
                     action_server.set_robot(None)
 
@@ -977,15 +984,15 @@ def main():
                 while True:
                     # Sends the program to the robot
                     while not connection.ready_to_program():
-                        print "Waiting to program"
+                        print("Waiting to program")
                         time.sleep(1.0)
-                    try:
-                        prevent_programming = rospy.get_param("~prevent_programming")
-                        update = {'prevent_programming': prevent_programming}
-                        reconfigure_srv.update_configuration(update)
-                    except KeyError, ex:
-                        print "Parameter 'prevent_programming' not set. Value: " + str(prevent_programming)
-                        pass
+                    # try:
+                    #     prevent_programming = rospy.get_param("~prevent_programming")
+                    #     update = {'prevent_programming': prevent_programming}
+                    #     reconfigure_srv.update_configuration(update)
+                    # except KeyError, ex:
+                    #     print("Parameter 'prevent_programming' not set. Value: " + str(prevent_programming))
+                    #     pass
                     connection.send_program()
 
                     r = getConnectedRobot(wait=True, timeout=1.0)
