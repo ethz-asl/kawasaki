@@ -1,6 +1,7 @@
 import socket
 import time
 import math
+import threading
 
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import PoseStamped
@@ -95,7 +96,7 @@ def state_message_parser(message):
     pose_state_message.pose.position.z = pose_values[2] / 1000.
     quaternion = tf.transformations.quaternion_from_euler(
         math.radians(pose_values[3]),
-        math.radians(pose_values[4]), math.radians(pose_values[5]))
+        math.radians(pose_values[4]), math.radians(pose_values[5]), 'szyz')
     pose_state_message.pose.orientation.x = quaternion[0]
     pose_state_message.pose.orientation.y = quaternion[1]
     pose_state_message.pose.orientation.z = quaternion[2]
@@ -106,32 +107,30 @@ def state_message_parser(message):
 
 def get_state(connection_socket):
     connection_socket.send(b'wh\n')
-    time.sleep(0.1)
+    time.sleep(0.08)
     message = connection_socket.recvfrom(500)
-    import difflib
     if (message[0][0:66] ==
             'wh\r\n     JT1       JT2       JT3       JT4       JT5       JT6  \r\n'):
-        print("Got joint_state message.")
         joint_states_unparsed = message[0]
         joint_state_message, pose_state_message = state_message_parser(
             joint_states_unparsed)
-        print(joint_state_message)
-        print(pose_state_message)
+        return joint_state_message, pose_state_message
     else:
         print("Got wrong return message after executing 'wh':")
         print(message)
     # TODO(ntonci): Parse the message
 
 
-def set_state():
-    global connection_socket
-    # TODO(ntonci): Check how can we send the pose in world frame and start
-    # motion of the robot to go to that pose
-    connection_socket.send('')
-    # TODO(ntonci): We need to wait here for the feedback, it should be
-    # on-blocking I guess
-    message = connection_socket.recvfrom(500)
-    print(message)
+def set_state(pose_msg, args):
+    print("Got pose_msg")
+    connection_socket = args[0]
+    set_state_lock = args[1]
+    with set_state_lock:
+        command_string = create_lmove_message(pose_msg)
+        connection_socket.send(command_string)
+
+        message = connection_socket.recvfrom(500)
+        print(message)
     # TODO(ntonci): Check the output and parse it to check if the execution was
     # done properly
 
@@ -139,17 +138,16 @@ def set_state():
 def create_lmove_message(pose):
     quaternion = (pose.pose.orientation.x, pose.pose.orientation.y,
                   pose.pose.orientation.z, pose.pose.orientation.w)
-    euler = tf.transformations.euler_from_quaternion(
-        quaternion)  # TODO(ntonci): Check order of angles and units
+    euler = tf.transformations.euler_from_quaternion(quaternion, 'szyz')
     euler = [math.degrees(angle) for angle in euler]
     translation = (pose.pose.position.x, pose.pose.position.y,
                    pose.pose.position.z)
-    message = 'LMOVE '
+    message = b'DO LMOVE TRANS('
     for pos in translation:
-        message = message + str(pos) + ', '
+        message = message + str(round(pos * 1000., 3)) + ', '
     for rot in euler:
-        message = message + str(rot) + ', '
-    message = message[:-2] + '\n'
+        message = message + str(round(rot, 3)) + ', '
+    message = message[:-2] + ')\n'
     return message
 
 

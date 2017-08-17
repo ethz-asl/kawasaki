@@ -20,6 +20,8 @@ from control_msgs.msg import FollowJointTrajectoryAction
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
 import kawasaki_commands as kc
+from geometry_msgs.msg import PoseStamped
+from sensor_msgs.msg import JointState
 
 # from geometry_msgs.msg import WrenchStamped
 #
@@ -931,14 +933,27 @@ def reconfigure_callback(config, level):
 
 
 def main():
+    set_state_lock = threading.Lock()
     rospy.init_node('kawasaki_driver', disable_signals=True)
+    rate = rospy.Rate(10)
     if rospy.get_param("use_sim_time", False):
         rospy.logwarn("use_sim_time is set!!!")
 
     connection_socket_send, connection_socket_receive = kc.connect_to_robot(
         "192.168.0.91", 23)
-    for i in range(2):
-        kc.get_state(connection_socket_receive)
+
+    pose_pub = rospy.Publisher('pose', PoseStamped, queue_size=10)
+    joint_pub = rospy.Publisher('joint_states', JointState, queue_size=10)
+
+    pose_sub = rospy.Subscriber("command/pose", PoseStamped, kc.set_state,
+                                (connection_socket_send, set_state_lock))
+
+    while not rospy.is_shutdown():
+        joint_state_message, pose_state_message = kc.get_state(
+            connection_socket_receive)
+        pose_pub.publish(pose_state_message)
+        joint_pub.publish(joint_state_message)
+        rate.sleep()
 
     connection_socket_send.close()
     time.sleep(1)
