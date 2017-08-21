@@ -118,6 +118,7 @@ def get_state(connection_socket):
     else:
         print("Got wrong return message after executing 'wh':")
         print(message)
+        return None, None
     # TODO(ntonci): Parse the message
 
 

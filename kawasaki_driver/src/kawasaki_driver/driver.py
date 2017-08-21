@@ -951,6 +951,9 @@ def main():
     while not rospy.is_shutdown():
         joint_state_message, pose_state_message = kc.get_state(
             connection_socket_receive)
+        if joint_state_message is None or pose_state_message is None:
+            rate.sleep()
+            continue
         pose_pub.publish(pose_state_message)
         joint_pub.publish(joint_state_message)
         rate.sleep()
