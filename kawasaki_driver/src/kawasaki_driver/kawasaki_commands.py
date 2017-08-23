@@ -63,6 +63,8 @@ def connect_to_robot(address="192.168.2.2", port=23):
 
 def state_message_parser(message):
     split_msg = message.split('\r\n')
+    if len(split_msg) < 5:
+        return None, None
     joint_values = parse_and_convert_to_float(split_msg[2])
     pose_values = parse_and_convert_to_float(split_msg[4])
 
@@ -86,28 +88,31 @@ def state_message_parser(message):
     # pose_state_message.position = pose_values
     # pose_state_message.velocity = []
     # pose_state_message.effort = []
-
-    pose_state_message = PoseStamped()
-    pose_state_message.header = Header()
-    pose_state_message.header.stamp = ros_now
-    pose_state_message.header.frame_id = 'base'
-    pose_state_message.pose.position.x = pose_values[0] / 1000.
-    pose_state_message.pose.position.y = pose_values[1] / 1000.
-    pose_state_message.pose.position.z = pose_values[2] / 1000.
-    quaternion = tf.transformations.quaternion_from_euler(
-        math.radians(pose_values[3]),
-        math.radians(pose_values[4]), math.radians(pose_values[5]), 'szyz')
-    pose_state_message.pose.orientation.x = quaternion[0]
-    pose_state_message.pose.orientation.y = quaternion[1]
-    pose_state_message.pose.orientation.z = quaternion[2]
-    pose_state_message.pose.orientation.w = quaternion[3]
+    try:
+        pose_state_message = PoseStamped()
+        pose_state_message.header = Header()
+        pose_state_message.header.stamp = ros_now
+        pose_state_message.header.frame_id = 'base'
+        pose_state_message.pose.position.x = pose_values[0] / 1000.
+        pose_state_message.pose.position.y = pose_values[1] / 1000.
+        pose_state_message.pose.position.z = pose_values[2] / 1000.
+        quaternion = tf.transformations.quaternion_from_euler(
+            math.radians(pose_values[3]),
+            math.radians(pose_values[4]), math.radians(pose_values[5]), 'szyz')
+        pose_state_message.pose.orientation.x = quaternion[0]
+        pose_state_message.pose.orientation.y = quaternion[1]
+        pose_state_message.pose.orientation.z = quaternion[2]
+        pose_state_message.pose.orientation.w = quaternion[3]
+    except IndexError, e:
+        print(e)
+        return None, None
 
     return joint_state_message, pose_state_message
 
 
 def get_state(connection_socket):
     connection_socket.send(b'wh\n')
-    time.sleep(0.08)
+    time.sleep(0.15)
     message = connection_socket.recvfrom(500)
     if (message[0][0:66] ==
             'wh\r\n     JT1       JT2       JT3       JT4       JT5       JT6  \r\n'):

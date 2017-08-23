@@ -935,7 +935,7 @@ def reconfigure_callback(config, level):
 def main():
     set_state_lock = threading.Lock()
     rospy.init_node('kawasaki_driver', disable_signals=True)
-    rate = rospy.Rate(10)
+    rate = rospy.Rate(6)
     if rospy.get_param("use_sim_time", False):
         rospy.logwarn("use_sim_time is set!!!")
 
