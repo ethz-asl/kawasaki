@@ -7,13 +7,17 @@ from sensor_msgs.msg import JointState
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import Header
 
+from constants import const
+
 
 def state_message_parser(message):
     split_msg = message.split('\r\n')
-    if len(split_msg) < 5:
+    if (len(split_msg) < const.STATE_MSG_PARSED_SIZE):
         return None, None
-    joint_values = parse_and_convert_to_float(split_msg[2])
-    pose_values = parse_and_convert_to_float(split_msg[4])
+    joint_values = parse_and_convert_to_float(
+        split_msg[const.STATE_MSG_JOINT_VALUES_INDEX])
+    pose_values = parse_and_convert_to_float(
+        split_msg[const.STATE_MSG_POSE_VALUES_INDEX])
 
     ros_now = rospy.Time()
     try:

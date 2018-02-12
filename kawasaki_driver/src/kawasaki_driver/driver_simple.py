@@ -44,6 +44,7 @@ def set_pose_callback(pose_msg, args):
                         rospy.logerr('Could not reach the target pose in ' +
                                      str(const.counter_threshold * const.
                                          TIMEOUT_MEDIUM) + ' sec. Aborting!')
+                        kc.clear_buffer(connection_socket)
                         return
                     counter += 1.0
                 if (kc.receive_after_motion_complete(connection_socket)):
@@ -52,6 +53,8 @@ def set_pose_callback(pose_msg, args):
                 else:
                     rospy.logerr(
                         'Received unknown message upon motion completion!')
+        else:
+            rospy.logerr('Could not move the robot to the new state!')
 
 
 def shutdown_hook():
@@ -99,8 +102,6 @@ def main():
         pose_pub.publish(pose_state_message)
         joint_pub.publish(joint_state_message)
         rate.sleep()
-        # TODO(ntonci): Remove after debugging.
-        # rospy.loginfo('I am alive')
 
 
 if __name__ == '__main__':

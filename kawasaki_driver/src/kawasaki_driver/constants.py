@@ -11,8 +11,15 @@ class const:
                            'is ON.')
     ERROR_MODE_ERROR = ('(P1013)Cannot execute because in error now. '
                         'Reset error.')
+    ALREADY_RUNNING_ERROR = ('(P1009)Program is already running.')
+    CANNOT_REACH_ERROR = ('(P1013)Cannot execute because in error now. '
+                          'Reset error.')
+    NO_ERROR_FEEDBACK = ('>')
     MOTION_COMPLETE_MESSAGE = ('DO motion completed.\r\n')
     MIN_STATE_MSG_SIZE = 230  # Probably a bit higher, conservative estimate
+    STATE_MSG_PARSED_SIZE = 5
+    STATE_MSG_JOINT_VALUES_INDEX = 2
+    STATE_MSG_POSE_VALUES_INDEX = 4
 
     LOGIN_USER = b'as\n'
     GET_STATE = b'wh\n'
@@ -31,4 +38,6 @@ class const:
 
     # PARAMS:
     wait_until_executed = True
-    counter_threshold = 10
+    counter_threshold = 40
+    translation_difference_threshold = 0.0001
+    rotation_difference_threshold = 0.03
