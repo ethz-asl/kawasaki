@@ -53,6 +53,11 @@ def set_pose_callback(pose_msg, args):
                 else:
                     rospy.logerr(
                         'Received unknown message upon motion completion!')
+            else:
+                rospy.loginfo(
+                    ('New state has been published. However, since '
+                     'you are not waiting for completion, you need to'
+                     ' clean the buffer before sending the new pose.'))
         else:
             rospy.logerr('Could not move the robot to the new state!')
 
@@ -70,7 +75,11 @@ def main():
     global connection_socket_send, connection_socket_receive
     set_state_lock = threading.Lock()
     get_state_lock = threading.Lock()
-    rospy.init_node('kawasaki_driver', disable_signals=True)
+
+    log_level = rospy.get_param('log_level', rospy.INFO)
+
+    rospy.init_node(
+        'kawasaki_driver', log_level=log_level, disable_signals=True)
     rospy.on_shutdown(shutdown_hook)
 
     rate = rospy.Rate(const.ROS_RATE)
@@ -79,14 +88,14 @@ def main():
         const.HOSTNAME, const.PORT)
 
     pose_pub = rospy.Publisher(
-        'pose', PoseStamped, queue_size=const.PUB_QUEUE_SIZE)
+        const.pose_pub_topic, PoseStamped, queue_size=const.PUB_QUEUE_SIZE)
     joint_pub = rospy.Publisher(
-        'joint_states', JointState, queue_size=const.PUB_QUEUE_SIZE)
+        const.joint_pub_topic, JointState, queue_size=const.PUB_QUEUE_SIZE)
     complete_pub = rospy.Publisher(
-        'completed_move', Bool, queue_size=const.PUB_QUEUE_SIZE)
+        const.completed_move_pub_topic, Bool, queue_size=const.PUB_QUEUE_SIZE)
 
     pose_sub = rospy.Subscriber(
-        "command/pose",
+        const.pose_sub_topic,
         PoseStamped,
         set_pose_callback, (connection_socket_send, set_state_lock,
                             get_state_lock, complete_pub),

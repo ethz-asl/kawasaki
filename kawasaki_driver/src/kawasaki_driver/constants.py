@@ -35,9 +35,15 @@ class const:
     TIMEOUT_SMALL = 0.1
     TIMEOUT_MEDIUM = 0.5
     TIMEOUT_LARGE = 1.0
+    TRANSLATION_DIFFERENCE_THRESHOLD = 0.0001
+    ROTATION_DIFFERENCE_THRESHOLD = 0.05
 
     # PARAMS:
     wait_until_executed = True
-    counter_threshold = 40
-    translation_difference_threshold = 0.0001
-    rotation_difference_threshold = 0.03
+    counter_threshold = 40  # x0.5 sec wait
+
+    # TOPICS:
+    pose_pub_topic = 'pose'
+    joint_pub_topic = 'joint_states'
+    completed_move_pub_topic = 'completed_move'
+    pose_sub_topic = 'command/pose'

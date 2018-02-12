@@ -115,6 +115,7 @@ def set_state(pose_msg, connection_socket):
     else:
         rospy.logerr('Unknown error: ')
         rospy.logerr(message)
+        clear_buffer(connection_socket)
         return False
 
 
@@ -133,6 +134,7 @@ def clear_buffer(connection_socket):
     rospy.loginfo('Clearing buffer')
     time.sleep(const.TIMEOUT_MEDIUM)
     message = connection_socket.recvfrom(const.RECEIVE_MSG_SIZE)
+    return message
 
 
 def compare_two_pose_msgs(current_pose, target_pose):
@@ -148,8 +150,8 @@ def compare_two_pose_msgs(current_pose, target_pose):
         diff_t += pow(i - j, 2.0)
     for i, j in zip(current_euler, target_euler):
         diff_r += pow(i - j, 2.0)
-    if ((pow(diff_t, 0.5) < const.translation_difference_threshold)
-            and (pow(diff_r, 0.5) < const.rotation_difference_threshold)):
+    if ((pow(diff_t, 0.5) < const.TRANSLATION_DIFFERENCE_THRESHOLD)
+            and (pow(diff_r, 0.5) < const.ROTATION_DIFFERENCE_THRESHOLD)):
         return True
     else:
         return False
