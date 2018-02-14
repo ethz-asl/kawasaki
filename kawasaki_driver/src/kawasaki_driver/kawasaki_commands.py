@@ -108,6 +108,9 @@ def set_state(pose_msg, connection_socket):
         elif (feedback_error == const.CANNOT_REACH_ERROR):
             rospy.logerr(feedback_error)
             return False
+        elif (feedback_error == const.TEACH_MODE_ERROR):
+            rospy.logerr(feedback_error)
+            return False
         else:
             # TODO(ntonci): Handle any other known errors.
             rospy.logerr(message)

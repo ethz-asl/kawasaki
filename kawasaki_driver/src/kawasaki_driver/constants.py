@@ -9,6 +9,7 @@ class const:
                        ' is OFF.')
     TEACH_LOCK_ON_ERROR = ('(P1002)Cannot execute program because teach lock '
                            'is ON.')
+    TEACH_MODE_ERROR = ('(P1001)Cannot execute program in TEACH mode.')
     ERROR_MODE_ERROR = ('(P1013)Cannot execute because in error now. '
                         'Reset error.')
     ALREADY_RUNNING_ERROR = ('(P1009)Program is already running.')
