@@ -49,7 +49,7 @@ def state_message_parser(message):
         pose_state_message.pose.position.z = pose_values[2] / 1000.
         quaternion = tf.transformations.quaternion_from_euler(
             math.radians(pose_values[3]),
-            math.radians(pose_values[4]), math.radians(pose_values[5]), 'szyz')
+            math.radians(pose_values[4]), math.radians(pose_values[5]), 'rzyz')
         pose_state_message.pose.orientation.x = quaternion[0]
         pose_state_message.pose.orientation.y = quaternion[1]
         pose_state_message.pose.orientation.z = quaternion[2]
