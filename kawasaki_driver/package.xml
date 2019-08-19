@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>kawasaki_driver</name>
+  <version>0.0.0</version>
+  <description> Driver for Kawasaki robots. </description>
+
+  <maintainer email="fadri.furrer@mavt.ethz.ch">Fadri Furrer</maintainer>
+  <maintainer email="tonci.novkovic@mavt.ethz.ch">Tonci Novkovic</maintainer>
+  <author>Fadri Furrer</author>
+  <author>Tonci Novkovic</author>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>catkin_simple</buildtool_depend>
+
+  <depend>rospy</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+</package>
